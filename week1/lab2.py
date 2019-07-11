@@ -30,7 +30,7 @@ class Lab2:
     def __init__(self, id, ep):
         cr.init(autoreset=True)
         gym.envs.registration.register(id=id, entry_point=ep, kwargs={'map_name':'4x4', 'is_slippery':False})
-        self.env = gym.make('FrozenLake-v3')
+        self.env = gym.make(id)
         self.env.render()
 
 # run program
