@@ -3,9 +3,17 @@
 
 ![](https://github.com/hyungkwonko/2019-summer-seminar/blob/master/img/img0.png)
 
-This repository will cover projects done through summer 2019 at SNU HCIL. The plan is to take [RL coursework](https://www.youtube.com/watch?v=dZ4vw6v3LcA&list=PLlMkM4tgfjnKsCWav-Z2F-MMFRx-2gMGG) made by Sung KIM at HKUST for the first five weeks, and then to implement personal work picked from [Open AI Gym](https://gym.openai.com/envs/Acrobot-v1/).
+This repository will cover projects done through summer 2019 at SNU HCIL. The plan is to take [RL coursework](https://www.youtube.com/watch?v=dZ4vw6v3LcA&list=PLlMkM4tgfjnKsCWav-Z2F-MMFRx-2gMGG) made by Sung KIM at HKUST for the first five weeks, and then to implement personal work picked from [Open AI Gym](https://gym.openai.com/envs/Acrobot-v1/) for the last 2 weeks.
 
-
+| Week | Date  | Topic |
+| ---                 | ---    | ---        |
+| 1 | 2019.7.15 | OpenAI GYM Games & Dummy Q Learning |
+| 2 | 2019.7.22 | Q-learning exploit & exploration and discounted reward |
+| 3 | 2019.7.29 | Q-learning in nondeterministic world |
+| 4 | 2019.8.5 | Q-network |
+| 5 | 2019.8.12 | DQN |
+| 6 | 2019.8.19 | Implementation1 |
+| 7 | 2019.8.26 | Implementation2 |
 
 The references that I am going to use for studying is given below. Some of them are only provided in Korean.
 
