@@ -7,7 +7,7 @@ This repository will cover projects done through summer 2019 at SNU HCIL. The pl
 
 | Week | Date  | Topic |
 | ---                 | ---    | ---        |
-| 1 | 2019.7.15 | OpenAI GYM Games & Dummy Q Learning |
+| 1 | 2019.7.15 | [OpenAI GYM Games & Dummy Q Learning](https://github.com/hyungkwonko/2019-summer-seminar/wiki/Week-1:-Open-AI-GYM-Games-&-Dummy-Q-Learning) |
 | 2 | 2019.7.22 | Q-learning exploit & exploration and discounted reward |
 | 3 | 2019.7.29 | Q-learning in nondeterministic world |
 | 4 | 2019.8.5 | Q-network |
