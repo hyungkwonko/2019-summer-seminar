@@ -80,10 +80,12 @@ if __name__ == "__main__":
 
     # Set env
     l4 = Lab4('FrozenLake-v3', 'gym.envs.toy_text:FrozenLakeEnv')
+
+    # User choose
+    noise = input("E/E(0) or Noise(1)? ")
     
     # Run algorithm
-    Q, rList = l4.algorithm(iter = num_episodes, noise = 1, gamma = gamma)
-    #Q, rList = l4.algorithm(iter = num_episodes, noise = 0, gamma = gamma)
+    Q, rList = l4.algorithm(iter = num_episodes, noise = int(noise), gamma = gamma)
 
     # Print out Success rate and Q-Table    
     print("Success rate: ", str(sum(rList)/num_episodes))
