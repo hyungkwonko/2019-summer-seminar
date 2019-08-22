@@ -22,13 +22,15 @@ import argparse
 MINIBATCH_SIZE = 32
 REPLAY_MEMORY_SIZE = 50000 # 500000
 AGENT_HISTORY_LENGTH = 4
-TARGET_NETWORK_UPDATE_FREQUENCY = 50 # 10000
+TARGET_NETWORK_UPDATE_FREQUENCY = 1000 # 10000
+TRAIN_START = 1000
 DISCOUNT_FACTOR = 0.95 # 0.99
 ACTION_REPEAT = 4
 UPDATE_FREQUENCY = 4 # ???
-LEARNING_RATE = 0.01 # 0.00025
-EXPLORATION = 1
-FINAL_EXPLORATION_FRAME = 1000000 # Should be run after this number, but set it as our final number of steps to run
+LEARNING_RATE = 0.025 # 0.00025
+EXPLORATION = 1 # initial value
+FINAL_EXPLORATION_FRAME = 10000 # 1000000 Should be run after this number, but set it as our final number of steps to run
+TOTAL_NUM_EPISODE = FINAL_EXPLORATION_FRAME * 10
 MODEL_SAVE_LOCATION = "c:/users/sunbl/desktop/model/model.ckpt"
 VIDEO_SAVE_LOCATION = "c:/users/sunbl/desktop/pong"
 
@@ -39,7 +41,7 @@ env = gym.make("PongDeterministic-v4")
 
 # record the game as as an mp4 file
 # how to use: https://gym.openai.com/evaluations/eval_lqShqslRtaJqR9yWWZIJg/
-env = wrappers.Monitor(env, VIDEO_SAVE_LOCATION,  force=True, video_callable=lambda episode_id: episode_id%50==0) 
+env = wrappers.Monitor(env, VIDEO_SAVE_LOCATION,  force=True, video_callable=lambda episode_id: episode_id%TARGET_NETWORK_UPDATE_FREQUENCY==0) 
 
 # INPUT DIMENSION
 #input_size = env.observation_space.shape # (210, 160, 3)
@@ -220,10 +222,11 @@ if __name__ == "__main__":
     replay_buffer = deque()
     
     with tf.Session() as sess:
+#    sess = tf.InteractiveSession()
         mainDQN = DQN(sess, INPUT_H, INPUT_W, CHANNEL, OUTPUT_SIZE, name="main")
         targetDQN = DQN(sess, INPUT_H, INPUT_W, CHANNEL, OUTPUT_SIZE, name="target")
         tf.global_variables_initializer().run()
-
+    
         # Add ops to save and restore all the variables.
         saver = tf.train.Saver()
         
@@ -231,7 +234,7 @@ if __name__ == "__main__":
         if(load):
             saver.restore(sess, MODEL_SAVE_LOCATION)
             print("model loaded.")
-
+    
         # Render model
         if(render):
             bot_play(mainDQN)    
@@ -239,10 +242,15 @@ if __name__ == "__main__":
         copy_ops = get_copy_var_ops(dest_scope_name="target", src_scope_name="main")
         
         sess.run(copy_ops)
-    
-        for episode in range(FINAL_EXPLORATION_FRAME):
+        
+        loss = 0
+        
+        for episode in range(TOTAL_NUM_EPISODE):
             # Exploration variable: [Initial = 1, Final = 0.1]
-            EXPLORATION = 0.9 / ((episode / 10) + 1) + 0.1
+            
+            if(episode > TRAIN_START):
+                EXPLORATION = 1 - 0.9 * (episode / FINAL_EXPLORATION_FRAME)
+
             done = False
             reward_total = 0
             
@@ -252,16 +260,23 @@ if __name__ == "__main__":
             # line 5-2 (preprocessed sequenced phi_1 = phi(s_1))
             state = state2 = state3 = state4 = preprocess(state) # preprocess state (210, 160, 3) -> (80, 80)
     
+            qlist = []
+    
             # line 6 (for t = 1,T do)
             while not done: 
+                
+                # calculate Q value            
+                tmp = np.concatenate((state, state2, state3, state4), axis=2).reshape(-1,80,80,4)
+                q = mainDQN.predict(tmp)
+                qmax = np.max(q)
+                qlist.append(qmax)
                 
                 # line 7 (With probability e select a random action a_t)
                 if(np.random.rand(1) < EXPLORATION):
                     action = env.action_space.sample()
                 else: # line 8 (otherwise select a_t = max ...)
-                    tmp = np.concatenate((state, state2, state3, state4), axis=2).reshape(-1,80,80,4)
-                    action = np.argmax(mainDQN.predict(tmp))
-
+                    action = np.argmax(q)
+                    
                 # line 9 (execute action a_t in emulator and observe reward r_t and image x_t+1)                    
                 next_state, reward, done, _ = env.step(action) # get next states, rewards, dones
                 if(done):
@@ -283,7 +298,7 @@ if __name__ == "__main__":
                         else:
                             next_state4, reward4, done4, _ = env.step(action)
                 done = done or done2 or done3 or done4
-
+    
                 # preprocess next_state also
                 next_state = preprocess(next_state)
                 next_state2 = preprocess(next_state2)
@@ -296,40 +311,43 @@ if __name__ == "__main__":
                 
                 # sum of reward
                 reward_t = reward + reward2 + reward3 + reward4
-
+    
                 # put elements into the buffer
                 replay_buffer.append((s_t, action, reward_t, s2_t, done))
-
+    
                 # spit out elements if it has more than REPLAY_MEMORY_SIZE
                 while(len(replay_buffer) > REPLAY_MEMORY_SIZE):
                     replay_buffer.popleft()
-
+    
                 # update state
                 state = next_state
                 state2 = next_state2
                 state3 = next_state3
                 state4 = next_state4
-
+    
                 # accumulate total reward
                 reward_total = reward_total + reward_t
-                                
-            print("Episode: {}, reward_total: {}".format(episode, reward_total))
+    
+                # update main DQN
+        #        for _ in range(UPDATE_FREQUENCY): # UPDATE_FREQUENCY == 4
+                if(episode >= TRAIN_START):
+                    minibatch = random.sample(replay_buffer, MINIBATCH_SIZE) # MINIBATCH_SIZE == 32
+                    loss, _ = replay_train(mainDQN, targetDQN, minibatch)
+                    
+            if(episode % TARGET_NETWORK_UPDATE_FREQUENCY == 1): # TARGET_NETWORK_UPDATE_FREQUENCY should be 10000
+
+                # copy network from mainDQN to targetDQN
+                sess.run(copy_ops)
+    
+                # save model
+                saver.save(sess, MODEL_SAVE_LOCATION)
+                print("model saved.")
+                
+    
+            print("Episode: {}, reward_total: {}, avgMaxQ: {:.4f}, e: {:.4f}, loss: {}".format(episode, reward_total, np.mean(qlist), EXPLORATION, loss))
             
             # stop looping if total reward is bigger than 10
             if(reward_total > 10):
                 break
-            
-            if(episode % TARGET_NETWORK_UPDATE_FREQUENCY == 1): # TARGET_NETWORK_UPDATE_FREQUENCY should be 10000
-                for _ in range(UPDATE_FREQUENCY): # UPDATE_FREQUENCY == 4
-                    minibatch = random.sample(replay_buffer, MINIBATCH_SIZE) # MINIBATCH_SIZE == 32
-                    loss, _ = replay_train(mainDQN, targetDQN, minibatch)
-                print("Loss: ", loss)
-                
-                # copy network from mainDQN to targetDQN
-                sess.run(copy_ops)
-                
-                # save model
-                saver.save(sess, MODEL_SAVE_LOCATION)
-                print("model saved.")
     
-                
+
