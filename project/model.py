@@ -28,7 +28,7 @@ UPDATE_FREQUENCY = 4 # ???
 LEARNING_RATE = 0.00025
 EXPLORATION = 1 # initial value
 FINAL_EXPLORATION_FRAME = 1000000 # 1000000 Should be run after this number, but set it as our final number of steps to run
-TOTAL_EPISODE = 1000
+TOTAL_EPISODE = 500*50
 MODEL_SAVE_LOCATION = "c:/users/hkko/desktop/model/model.ckpt"
 VIDEO_SAVE_LOCATION = "c:/users/hkko/desktop/pong"
 EPSILON = 0.01
@@ -66,7 +66,8 @@ class DQN:
         self.output_size = output_size
         self.net_name = name
         self._build_network()
-       
+      
+    # function code retrived from https://passi0n.tistory.com/88
     def cliped_error(self, error):
         return tf.where(tf.abs(error) < 1.0, 0.5 * tf.square(error), tf.abs(error) - 0.5)
      
@@ -97,7 +98,7 @@ class DQN:
             
             # Fully-connected layer: 2304 -> 256
             W4 = tf.compat.v1.get_variable("W4", shape=[6*6*64, 256], initializer=tf.contrib.layers.xavier_initializer())            
-            L4 = tf.nn.tanh(tf.matmul(L3, W4))
+            L4 = tf.nn.relu(tf.matmul(L3, W4))
             
             # output layer, 256 -> 6
             W5 = tf.compat.v1.get_variable("W5", shape=[256, 6], initializer=tf.contrib.layers.xavier_initializer())        
@@ -113,8 +114,8 @@ class DQN:
         self._loss = tf.reduce_mean(tf.square(error))
         
         # Learning
-        self._train = tf.compat.v1.train.AdamOptimizer(LEARNING_RATE).minimize(self._loss)
-#        self._train = tf.compat.v1.train.RMSPropOptimizer(LEARNING_RATE, momentum=MOMENTUM, epsilon=EPSILON).minimize(self._loss)
+        self._train = tf.compat.v1.train.RMSPropOptimizer(LEARNING_RATE, momentum=MOMENTUM, epsilon=EPSILON).minimize(self._loss)
+#        self._train = tf.compat.v1.train.AdamOptimizer(LEARNING_RATE).minimize(self._loss)
        
     def predict(self, state):
         return self.session.run(self._Qpred, feed_dict={self._X: state})
@@ -254,7 +255,7 @@ if __name__ == "__main__":
         for episode in range(TOTAL_EPISODE):
             # Exploration variable: [Initial = 1, Final = 0.1]
             
-            if(frame > TRAIN_START):
+            if(frame > TRAIN_START & EXPLORATION > 0.1):
                 EXPLORATION = 1 - 0.9 * ((frame-TRAIN_START) / FINAL_EXPLORATION_FRAME)
 
             done = False
@@ -310,12 +311,12 @@ if __name__ == "__main__":
                 # update main DQN
                 if(frame >= TRAIN_START):
                     minibatch = random.sample(replay_buffer, MINIBATCH_SIZE) # MINIBATCH_SIZE == 32
+                    # Every C updates we clone the network Q to obtaion a target network Qhat
+                    if(frame % TARGET_NETWORK_UPDATE_FREQUENCY == 0): # TARGET_NETWORK_UPDATE_FREQUENCY = 10000        
+                        # copy network from mainDQN to targetDQN
+                        sess.run(copy_ops)
                     loss, _ = replay_train(mainDQN, targetDQN, minibatch)
                     
-                if(frame % TARGET_NETWORK_UPDATE_FREQUENCY == 0): # TARGET_NETWORK_UPDATE_FREQUENCY = 10000
-    
-                    # copy network from mainDQN to targetDQN
-                    sess.run(copy_ops)
         
                 if(frame % (TARGET_NETWORK_UPDATE_FREQUENCY * 5) == 0): # save per 50000 frames
                     # save model
@@ -329,4 +330,3 @@ if __name__ == "__main__":
             if(reward_total > 12):
                 print("congrats! reward above 12")
                 break
-
