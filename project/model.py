@@ -16,23 +16,23 @@ import sys
 import argparse
 
 
-
-
 # HYPER PARAMETER SETTING
 MINIBATCH_SIZE = 32
-REPLAY_MEMORY_SIZE = 50000 # 500000
+REPLAY_MEMORY_SIZE = 500000
 AGENT_HISTORY_LENGTH = 4
-TARGET_NETWORK_UPDATE_FREQUENCY = 1000 # 10000
-TRAIN_START = 1000
-DISCOUNT_FACTOR = 0.95 # 0.99
+TARGET_NETWORK_UPDATE_FREQUENCY = 10000
+TRAIN_START = 50000
+DISCOUNT_FACTOR = 0.99 # 0.99
 ACTION_REPEAT = 4
 UPDATE_FREQUENCY = 4 # ???
-LEARNING_RATE = 0.025 # 0.00025
+LEARNING_RATE = 0.00025
 EXPLORATION = 1 # initial value
-FINAL_EXPLORATION_FRAME = 10000 # 1000000 Should be run after this number, but set it as our final number of steps to run
-TOTAL_NUM_EPISODE = FINAL_EXPLORATION_FRAME * 10
-MODEL_SAVE_LOCATION = "c:/users/sunbl/desktop/model/model.ckpt"
-VIDEO_SAVE_LOCATION = "c:/users/sunbl/desktop/pong"
+FINAL_EXPLORATION_FRAME = 1000000 # 1000000 Should be run after this number, but set it as our final number of steps to run
+TOTAL_EPISODE = 1000
+MODEL_SAVE_LOCATION = "c:/users/hkko/desktop/model/model.ckpt"
+VIDEO_SAVE_LOCATION = "c:/users/hkko/desktop/pong"
+EPSILON = 0.01
+MOMENTUM = 0.95
 
 # Used Deterministic-v4 (action is selected for every 4 frames)
 # https://github.com/openai/gym/blob/5cb12296274020db9bb6378ce54276b31e7002da/gym/envs/__init__.py#L352
@@ -41,7 +41,7 @@ env = gym.make("PongDeterministic-v4")
 
 # record the game as as an mp4 file
 # how to use: https://gym.openai.com/evaluations/eval_lqShqslRtaJqR9yWWZIJg/
-env = wrappers.Monitor(env, VIDEO_SAVE_LOCATION,  force=True, video_callable=lambda episode_id: episode_id%TARGET_NETWORK_UPDATE_FREQUENCY==0) 
+env = wrappers.Monitor(env, VIDEO_SAVE_LOCATION, force=True, video_callable=lambda episode_id: episode_id%50==0) 
 
 # INPUT DIMENSION
 #input_size = env.observation_space.shape # (210, 160, 3)
@@ -66,52 +66,58 @@ class DQN:
         self.output_size = output_size
         self.net_name = name
         self._build_network()
-    
+       
+    def cliped_error(self, error):
+        return tf.where(tf.abs(error) < 1.0, 0.5 * tf.square(error), tf.abs(error) - 0.5)
+     
     def _build_network(self, l_rate=LEARNING_RATE):
-        with tf.variable_scope(self.net_name):
+        with tf.compat.v1.variable_scope(self.net_name):
 
             # input, SIZE: (batch_size, 80, 80, 4)
-            self._X = tf.placeholder(tf.float32, [None,80,80,4])
+            self._X = tf.compat.v1.placeholder(tf.float32, [None,80,80,4])
 
             # layer 1
-            # SIZE: 80x80, CHANNEL: 4, FILTER: 16 (8x8)
-            W1 = tf.Variable(tf.random_normal([8,8,4,16], stddev=0.1), name="W1")
-
-            # STRIDE: 4x4, PADDING: same
-            L1 = tf.nn.conv2d(self._X, W1, strides=[1,4,4,1], padding='SAME')
-            L1 = tf.nn.relu(L1)
+            # SIZE: 80x80, CHANNEL: 4, FILTER: 32 (8x8)
+            W1 = tf.compat.v1.get_variable("W1", shape=[8,8,4,32], initializer=tf.contrib.layers.xavier_initializer_conv2d())
+            # STRIDE: 4x4, PADDING: VALID
+            L1 = tf.nn.relu(tf.nn.conv2d(self._X, W1, strides=[1,4,4,1], padding='VALID'))
             
             # layer 2
-            # SIZE: 20x20, CHANNEL: 16, FILTER: 32 (4x4)
-            W2 = tf.Variable(tf.random_normal([4,4,16,32], stddev = 0.1), name="W2")
+            # SIZE: 19x19, CHANNEL: 32, FILTER: 64 (4x4)
+            W2 = tf.compat.v1.get_variable("W2", shape=[4,4,32,64], initializer=tf.contrib.layers.xavier_initializer_conv2d())
+            # STRIDE: 2x2, PADDING: VALID
+            L2 = tf.nn.relu(tf.nn.conv2d(L1, W2, strides=[1,2,2,1], padding='VALID'))
             
-            # STRIDE: 2x2, PADDING: same
-            L2 = tf.nn.conv2d(L1, W2, strides=[1,2,2,1], padding='SAME')
-            L2 = tf.nn.relu(L2)
+            # layer 3
+            # SIZE: 6x6, CHANNEL: 64, FILTER: 64 (3x3)
+            W3 = tf.compat.v1.get_variable("W3", shape=[3,3,64,64], initializer=tf.contrib.layers.xavier_initializer_conv2d())
+            # STRIDE: 2x2, PADDING: VALID
+            L3 = tf.nn.relu(tf.nn.conv2d(L2, W3, strides=[1,1,1,1], padding='VALID'))
+            L3 = tf.reshape(L3, [-1, 6*6*64])
             
-            # SIZE: 10x10, CHANNEL: 32, 10x10x32= 3200
-            L2 = tf.reshape(L2, [-1,3200])
-            
-            # fully-connected layer: 3200 -> 256
-            W3 = tf.get_variable("W3", shape=[3200, 256], initializer=tf.contrib.layers.xavier_initializer())            
-            L3 = tf.nn.tanh(tf.matmul(L2, W3))
+            # Fully-connected layer: 2304 -> 256
+            W4 = tf.compat.v1.get_variable("W4", shape=[6*6*64, 256], initializer=tf.contrib.layers.xavier_initializer())            
+            L4 = tf.nn.tanh(tf.matmul(L3, W4))
             
             # output layer, 256 -> 6
-            W4 = tf.get_variable("W4", shape=[256, 6], initializer=tf.contrib.layers.xavier_initializer())        
-            self._Qpred = tf.matmul(L3, W4)
+            W5 = tf.compat.v1.get_variable("W5", shape=[256, 6], initializer=tf.contrib.layers.xavier_initializer())        
+            self._Qpred = tf.matmul(L4, W5)
         
         # Policy
-        self._Y = tf.placeholder(shape=[None, 6], dtype=tf.float32)  # 6가지의 output cases
+        self._Y = tf.compat.v1.placeholder(shape=[None, 6], dtype=tf.float32)  # 6 output cases
+        
+        # Error clip
+        error = self.cliped_error(self._Y - self._Qpred)
 
         # Loss function
-        self._loss = tf.reduce_mean(tf.square(self._Y - self._Qpred))
+        self._loss = tf.reduce_mean(tf.square(error))
         
         # Learning
-        self._train = tf.train.AdamOptimizer(learning_rate=l_rate).minimize(self._loss)
-        
+        self._train = tf.compat.v1.train.AdamOptimizer(LEARNING_RATE).minimize(self._loss)
+#        self._train = tf.compat.v1.train.RMSPropOptimizer(LEARNING_RATE, momentum=MOMENTUM, epsilon=EPSILON).minimize(self._loss)
+       
     def predict(self, state):
-        x = state.reshape([-1, 80,80,4])
-        return self.session.run(self._Qpred, feed_dict={self._X: x})
+        return self.session.run(self._Qpred, feed_dict={self._X: state})
     
     def update(self, x_stack, y_stack):
         return self.session.run([self._loss, self._train], feed_dict={self._X: x_stack, self._Y: y_stack})  
@@ -137,8 +143,8 @@ def replay_train(mainDQN, targetDQN, minibatch):
 
 def get_copy_var_ops(*, dest_scope_name="target", src_scope_name="main"):
     op_holder = []
-    src_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=src_scope_name)
-    dest_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=dest_scope_name)
+    src_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, scope=src_scope_name)
+    dest_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, scope=dest_scope_name)
     
     for src_var, dest_var in zip(src_vars, dest_vars):
         op_holder.append(dest_var.assign(src_var.value()))
@@ -211,7 +217,6 @@ if __name__ == "__main__":
     load = args.load # default is False
     render = args.render # default is False
     
-    
     # test preprocessing
     if(test):
         env.reset()
@@ -221,14 +226,14 @@ if __name__ == "__main__":
     # line 1 (initialize replay memory D to capacity N)
     replay_buffer = deque()
     
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
 #    sess = tf.InteractiveSession()
         mainDQN = DQN(sess, INPUT_H, INPUT_W, CHANNEL, OUTPUT_SIZE, name="main")
         targetDQN = DQN(sess, INPUT_H, INPUT_W, CHANNEL, OUTPUT_SIZE, name="target")
-        tf.global_variables_initializer().run()
+        tf.compat.v1.global_variables_initializer().run()
     
         # Add ops to save and restore all the variables.
-        saver = tf.train.Saver()
+        saver = tf.compat.v1.train.Saver()
         
         # Load trained parameters
         if(load):
@@ -244,12 +249,13 @@ if __name__ == "__main__":
         sess.run(copy_ops)
         
         loss = 0
+        frame = 1
         
-        for episode in range(TOTAL_NUM_EPISODE):
+        for episode in range(TOTAL_EPISODE):
             # Exploration variable: [Initial = 1, Final = 0.1]
             
-            if(episode > TRAIN_START):
-                EXPLORATION = 1 - 0.9 * (episode / FINAL_EXPLORATION_FRAME)
+            if(frame > TRAIN_START):
+                EXPLORATION = 1 - 0.9 * ((frame-TRAIN_START) / FINAL_EXPLORATION_FRAME)
 
             done = False
             reward_total = 0
@@ -279,75 +285,48 @@ if __name__ == "__main__":
                     
                 # line 9 (execute action a_t in emulator and observe reward r_t and image x_t+1)                    
                 next_state, reward, done, _ = env.step(action) # get next states, rewards, dones
-                if(done):
-                    next_state2 = next_state3 = next_state4 = next_state
-                    reward2 = reward3 = reward4 = 0
-                    done2 = done3 = done4 = done
-                else:
-                    next_state2, reward2, done2, _ = env.step(action)
-                    if(done2):
-                        next_state3 = next_state4 = next_state2
-                        reward3 = reward4 = 0
-                        done3 = done4 = done2
-                    else:
-                        next_state3, reward3, done3, _ = env.step(action)
-                        if(done3):
-                            next_state4 = next_state3
-                            reward4 = 0
-                            done4 = done3
-                        else:
-                            next_state4, reward4, done4, _ = env.step(action)
-                done = done or done2 or done3 or done4
-    
-                # preprocess next_state also
-                next_state = preprocess(next_state)
-                next_state2 = preprocess(next_state2)
-                next_state3 = preprocess(next_state3)
-                next_state4 = preprocess(next_state4)
-                
+                frame += 1
+
                 # make it 4 frames for each state and next_state
                 s_t = np.concatenate((state, state2, state3, state4), axis=2).reshape(-1,80,80,4)
-                s2_t = np.concatenate((next_state, next_state2, next_state3, next_state4), axis=2).reshape(-1,80,80,4)
                 
-                # sum of reward
-                reward_t = reward + reward2 + reward3 + reward4
-    
+                state = state2
+                state2 = state3
+                state3 = state4
+                state4 = preprocess(next_state)
+                
+                s2_t = np.concatenate((state, state2, state3, state4), axis=2).reshape(-1,80,80,4)
+                    
                 # put elements into the buffer
-                replay_buffer.append((s_t, action, reward_t, s2_t, done))
+                replay_buffer.append((s_t, action, reward, s2_t, done))
     
                 # spit out elements if it has more than REPLAY_MEMORY_SIZE
                 while(len(replay_buffer) > REPLAY_MEMORY_SIZE):
                     replay_buffer.popleft()
     
-                # update state
-                state = next_state
-                state2 = next_state2
-                state3 = next_state3
-                state4 = next_state4
-    
                 # accumulate total reward
-                reward_total = reward_total + reward_t
+                reward_total += reward
     
                 # update main DQN
-        #        for _ in range(UPDATE_FREQUENCY): # UPDATE_FREQUENCY == 4
-                if(episode >= TRAIN_START):
+                if(frame >= TRAIN_START):
                     minibatch = random.sample(replay_buffer, MINIBATCH_SIZE) # MINIBATCH_SIZE == 32
                     loss, _ = replay_train(mainDQN, targetDQN, minibatch)
                     
-            if(episode % TARGET_NETWORK_UPDATE_FREQUENCY == 1): # TARGET_NETWORK_UPDATE_FREQUENCY should be 10000
-
-                # copy network from mainDQN to targetDQN
-                sess.run(copy_ops)
+                if(frame % TARGET_NETWORK_UPDATE_FREQUENCY == 0): # TARGET_NETWORK_UPDATE_FREQUENCY = 10000
     
-                # save model
-                saver.save(sess, MODEL_SAVE_LOCATION)
-                print("model saved.")
-                
+                    # copy network from mainDQN to targetDQN
+                    sess.run(copy_ops)
+        
+                if(frame % (TARGET_NETWORK_UPDATE_FREQUENCY * 5) == 0): # save per 50000 frames
+                    # save model
+                    saver.save(sess, MODEL_SAVE_LOCATION)
+                    print("model saved.")
+                    
     
-            print("Episode: {}, reward_total: {}, avgMaxQ: {:.4f}, e: {:.4f}, loss: {}".format(episode, reward_total, np.mean(qlist), EXPLORATION, loss))
+            print("Episode: {:5d}, frame: {:6d}, reward_total: {}, avgMaxQ: {:.4f}, e: {:.4f}, loss: {:.7f}".format(episode, frame, reward_total, np.mean(qlist), EXPLORATION, loss))
             
-            # stop looping if total reward is bigger than 10
-            if(reward_total > 10):
+            # stop looping if total reward is bigger than 12
+            if(reward_total > 12):
+                print("congrats! reward above 12")
                 break
-    
 
