@@ -13,7 +13,8 @@ This repository will cover projects done through summer 2019 at SNU HCIL. The pl
 | 4 | 2019.8.5 | DQN |
 | 5 | 2019.8.19 | Project |
 
-The references that I am going to use for studying is given below. Some of them are only provided in Korean.
+These references that I am going to use for studying is given below. Some of them are only provided in Korean.
+
 
 - [Naver D2: Introduction of Deep Reinforcement Learning by Donghyun Kwak (Korean)](https://www.youtube.com/watch?v=dw0sHzE1oAc)
 - [RL Korea: How to study Reinforcement Learning (Korean)](https://github.com/reinforcement-learning-kr/how_to_study_rl)
