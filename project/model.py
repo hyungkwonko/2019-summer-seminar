@@ -28,7 +28,7 @@ UPDATE_FREQUENCY = 4 # ???
 LEARNING_RATE = 0.00025
 EXPLORATION = 1 # initial value
 FINAL_EXPLORATION_FRAME = 1000000 # 1000000 Should be run after this number, but set it as our final number of steps to run
-TOTAL_EPISODE = 500*50
+TOTAL_EPISODE = 100*50
 MODEL_SAVE_LOCATION = "c:/users/hkko/desktop/model/model.ckpt"
 VIDEO_SAVE_LOCATION = "c:/users/hkko/desktop/pong"
 EPSILON = 0.01
@@ -41,7 +41,7 @@ env = gym.make("PongDeterministic-v4")
 
 # record the game as as an mp4 file
 # how to use: https://gym.openai.com/evaluations/eval_lqShqslRtaJqR9yWWZIJg/
-env = wrappers.Monitor(env, VIDEO_SAVE_LOCATION, force=True, video_callable=lambda episode_id: episode_id%50==0) 
+env = wrappers.Monitor(env, VIDEO_SAVE_LOCATION, force=True, video_callable=lambda episode_id: episode_id%100==0) 
 
 # INPUT DIMENSION
 #input_size = env.observation_space.shape # (210, 160, 3)
@@ -255,7 +255,7 @@ if __name__ == "__main__":
         for episode in range(TOTAL_EPISODE):
             # Exploration variable: [Initial = 1, Final = 0.1]
             
-            if(frame > TRAIN_START & EXPLORATION > 0.1):
+            if((frame > TRAIN_START) & (EXPLORATION > 0.1)):
                 EXPLORATION = 1 - 0.9 * ((frame-TRAIN_START) / FINAL_EXPLORATION_FRAME)
 
             done = False
@@ -318,13 +318,13 @@ if __name__ == "__main__":
                     loss, _ = replay_train(mainDQN, targetDQN, minibatch)
                     
         
-                if(frame % (TARGET_NETWORK_UPDATE_FREQUENCY * 5) == 0): # save per 50000 frames
-                    # save model
-                    saver.save(sess, MODEL_SAVE_LOCATION)
-                    print("model saved.")
+            if(episode % 100 == 0): # save per 100 episodes
+                # save model
+                saver.save(sess, MODEL_SAVE_LOCATION)
+                print("model saved.")
                     
     
-            print("Episode: {:5d}, frame: {:6d}, reward_total: {}, avgMaxQ: {:.4f}, e: {:.4f}, loss: {:.7f}".format(episode, frame, reward_total, np.mean(qlist), EXPLORATION, loss))
+            print("Episode: {:5d}, frame: {:6d}, reward_total: {}, avgMaxQ: {:.5f}, e: {:.5f}, loss: {:.7f}".format(episode, frame, reward_total, np.mean(qlist), EXPLORATION, loss))
             
             # stop looping if total reward is bigger than 12
             if(reward_total > 12):
