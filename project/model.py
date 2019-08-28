@@ -2,7 +2,7 @@
 """
 @author: Hyung-Kwon Ko
 @created: Wed Jul 31 15:12:16 2019
-@last modified: Wed Jul 31 15:12:16 2019
+@last modified: Wed Aug 27 15:12:16 2019
 """
 
 import numpy as np
@@ -18,25 +18,30 @@ import argparse
 
 # HYPER PARAMETER SETTING
 MINIBATCH_SIZE = 32
-REPLAY_MEMORY_SIZE = 500000
+REPLAY_MEMORY_SIZE = 500000 # * 0.8
 AGENT_HISTORY_LENGTH = 4
 TARGET_NETWORK_UPDATE_FREQUENCY = 10000
 TRAIN_START = 50000
-DISCOUNT_FACTOR = 0.99 # 0.99
+DISCOUNT_FACTOR = 0.99
 ACTION_REPEAT = 4
-UPDATE_FREQUENCY = 4 # ???
-LEARNING_RATE = 0.00025
+#UPDATE_FREQUENCY = 4 # ???
+LEARNING_RATE = 1e-4 # 2.5e-4
 EXPLORATION = 1 # initial value
-FINAL_EXPLORATION_FRAME = 1000000 # 1000000 Should be run after this number, but set it as our final number of steps to run
+FINAL_EXPLORATION_RATE = 0.1 # 0.1
+FINAL_EXPLORATION_FRAME = 1000000 # 1000000
 TOTAL_EPISODE = 100*50
-MODEL_SAVE_LOCATION = "c:/users/hkko/desktop/model/model.ckpt"
-VIDEO_SAVE_LOCATION = "c:/users/hkko/desktop/pong"
-EPSILON = 0.01
-MOMENTUM = 0.95
+MODEL_SAVE_LOCATION = "c:/users/hkko/desktop/model/"
+VIDEO_SAVE_LOCATION = "c:/users/hkko/desktop/video/"
+LOG_SAVE_LOCATION = "c:/users/hkko/desktop/log/"
+#EPSILON = 0.01
+#MOMENTUM = 0.95
 
 # Used Deterministic-v4 (action is selected for every 4 frames)
 # https://github.com/openai/gym/blob/5cb12296274020db9bb6378ce54276b31e7002da/gym/envs/__init__.py#L352
 env = gym.make("PongDeterministic-v4")
+#env = gym.make("PongNoFrameskip-v4")
+#env = gym.make("StarGunnerDeterministic-v4")
+#env = gym.make("BoxingDeterministic-v4")
 #env = gym.make("MontezumaRevengeDeterministic-v4")
 
 # record the game as as an mp4 file
@@ -51,7 +56,7 @@ env = wrappers.Monitor(env, VIDEO_SAVE_LOCATION, force=True, video_callable=lamb
 INPUT_H = 80
 INPUT_W = 80
 INPUT_SIZE = INPUT_H * INPUT_W
-OUTPUT_SIZE = 6
+OUTPUT_SIZE = len(env.unwrapped.get_action_meanings())
 CHANNEL = 4
 
 
@@ -101,21 +106,23 @@ class DQN:
             L4 = tf.nn.relu(tf.matmul(L3, W4))
             
             # output layer, 256 -> 6
-            W5 = tf.compat.v1.get_variable("W5", shape=[256, 6], initializer=tf.contrib.layers.xavier_initializer())        
+            W5 = tf.compat.v1.get_variable("W5", shape=[256, self.output_size], initializer=tf.contrib.layers.xavier_initializer())        
             self._Qpred = tf.matmul(L4, W5)
         
         # Policy
-        self._Y = tf.compat.v1.placeholder(shape=[None, 6], dtype=tf.float32)  # 6 output cases
+        self._Y = tf.compat.v1.placeholder(shape=[None, self.output_size], dtype=tf.float32)  # 6 output cases
         
         # Error clip
         error = self.cliped_error(self._Y - self._Qpred)
 
         # Loss function
-        self._loss = tf.reduce_mean(tf.square(error))
+        self._loss = tf.reduce_sum(error)
+#        self._loss = tf.reduce_mean(error)
+#        self._loss = tf.reduce_mean(tf.square(error))
         
         # Learning
-        self._train = tf.compat.v1.train.RMSPropOptimizer(LEARNING_RATE, momentum=MOMENTUM, epsilon=EPSILON).minimize(self._loss)
-#        self._train = tf.compat.v1.train.AdamOptimizer(LEARNING_RATE).minimize(self._loss)
+        self._train = tf.compat.v1.train.AdamOptimizer(LEARNING_RATE).minimize(self._loss)
+#        self._train = tf.compat.v1.train.RMSPropOptimizer(LEARNING_RATE, momentum=MOMENTUM, epsilon=EPSILON).minimize(self._loss)
        
     def predict(self, state):
         return self.session.run(self._Qpred, feed_dict={self._X: state})
@@ -126,7 +133,7 @@ class DQN:
 
 def replay_train(mainDQN, targetDQN, minibatch):
     x_stack = np.empty(0).reshape(-1, 80,80,4) # array([], shape=(0, input_size), dtype=float64)
-    y_stack = np.empty(0).reshape(-1, 6) # array([], shape=(0, output_size), dtype=float64)
+    y_stack = np.empty(0).reshape(-1, OUTPUT_SIZE) # array([], shape=(0, output_size), dtype=float64)
     
     for state, action, reward, next_state, done in minibatch:
         Q = mainDQN.predict(state)
@@ -170,7 +177,7 @@ def preprocess_test(env):
     # reset environment
     act = env.action_space.sample()
     
-    for _ in range(50):
+    for _ in range(150):
         img, _, _, _ = env.step(act)
     
     # original image
@@ -180,14 +187,15 @@ def preprocess_test(env):
     # remove 3rd dimension
     img = img[35:195] # crop
     img = img[::2, ::2] # ex) 160x160 -> 80x80
-    img = img[:,:,0] # only leave 'R' from R-G-B    
+    img = (img[:,:,0]*0.299 + img[:,:,1]*0.587+ img[:,:,2]*0.114)/255
+#    img = img[:,:,0] # only leave 'R' from R-G-B    
 
     # remove background
-    np.unique(img)
-    img[img == np.bincount(list(img.reshape(-1))).argmax()] = 0 # erase background    
+#    np.unique(img)
+#    img[img == np.bincount(list(img.reshape(-1))).argmax()] = 0 # erase background    
 
     # set other colors simple
-    img[img != 0] = 1 # set others = 1
+#    img[img != 0] = 1 # set others = 1
     
     # print out image
     plt.imshow(img, cmap='gray')
@@ -198,10 +206,11 @@ def preprocess_test(env):
 def preprocess(img):
     img = img[35:195] # crop
     img = img[::2, ::2] # ex) 160x160 -> 80x80
-    img = img[:,:,0] # only leave 'R' from R-G-B    
-    img[img == np.bincount(list(img.reshape(-1))).argmax()] = 0 # erase background    
-    img[img != 0] = 1 # set others = 1
-    return img.reshape(80,80,1)
+    img = (img[:,:,0]*0.299 + img[:,:,1]*0.587+ img[:,:,2]*0.114)/255
+#    img = img[:,:,0] # only leave 'R' from R-G-B    
+#    img[img == np.bincount(list(img.reshape(-1))).argmax()] = 0 # erase background    
+#    img[img != 0] = 1 # set others = 1
+    return img.reshape(80,80,1).astype("float32")
 
 
 if __name__ == "__main__":
@@ -227,8 +236,16 @@ if __name__ == "__main__":
     # line 1 (initialize replay memory D to capacity N)
     replay_buffer = deque()
     
-    with tf.compat.v1.Session() as sess:
+    # boost GPU usage for this process
+    # for more information about using GPU in tf, visit: https://www.tensorflow.org/guide/using_gpu
+#    cfg = tf.ConfigProto()
+    tf_config = tf.ConfigProto(inter_op_parallelism_threads=1, intra_op_parallelism_threads=1)
+    tf_config.gpu_options.per_process_gpu_memory_fraction = 0.5
+    
+    with tf.compat.v1.Session(config=tf_config) as sess:
+#    with tf.compat.v1.Session(config=cfg) as sess:
 #    sess = tf.InteractiveSession()
+        
         mainDQN = DQN(sess, INPUT_H, INPUT_W, CHANNEL, OUTPUT_SIZE, name="main")
         targetDQN = DQN(sess, INPUT_H, INPUT_W, CHANNEL, OUTPUT_SIZE, name="target")
         tf.compat.v1.global_variables_initializer().run()
@@ -251,14 +268,17 @@ if __name__ == "__main__":
         
         loss = 0
         frame = 1
+        reward50 = deque(maxlen=50)
+        log = []
         
         for episode in range(TOTAL_EPISODE):
             # Exploration variable: [Initial = 1, Final = 0.1]
             
-            if((frame > TRAIN_START) & (EXPLORATION > 0.1)):
+            if((frame > TRAIN_START) & (EXPLORATION > FINAL_EXPLORATION_RATE)):
                 EXPLORATION = 1 - 0.9 * ((frame-TRAIN_START) / FINAL_EXPLORATION_FRAME)
 
             done = False
+            step = 0
             reward_total = 0
             
             # line 5-1 (Initialize sequence s_q = {x_1})
@@ -273,10 +293,9 @@ if __name__ == "__main__":
             while not done: 
                 
                 # calculate Q value            
-                tmp = np.concatenate((state, state2, state3, state4), axis=2).reshape(-1,80,80,4)
-                q = mainDQN.predict(tmp)
-                qmax = np.max(q)
-                qlist.append(qmax)
+                s_t = np.concatenate((state, state2, state3, state4), axis=2).reshape(-1,80,80,4)
+                q = mainDQN.predict(s_t)
+                qlist.append(np.max(q))
                 
                 # line 7 (With probability e select a random action a_t)
                 if(np.random.rand(1) < EXPLORATION):
@@ -285,17 +304,17 @@ if __name__ == "__main__":
                     action = np.argmax(q)
                     
                 # line 9 (execute action a_t in emulator and observe reward r_t and image x_t+1)                    
-                next_state, reward, done, _ = env.step(action) # get next states, rewards, dones
-                frame += 1
+                next_state, reward, done, life = env.step(action) # get next states, rewards, dones
 
-                # make it 4 frames for each state and next_state
-                s_t = np.concatenate((state, state2, state3, state4), axis=2).reshape(-1,80,80,4)
-                
+                frame += 1
+                step += 1
+
                 state = state2
                 state2 = state3
                 state3 = state4
                 state4 = preprocess(next_state)
                 
+                # make 4 frames concatenated
                 s2_t = np.concatenate((state, state2, state3, state4), axis=2).reshape(-1,80,80,4)
                     
                 # put elements into the buffer
@@ -311,22 +330,33 @@ if __name__ == "__main__":
                 # update main DQN
                 if(frame >= TRAIN_START):
                     minibatch = random.sample(replay_buffer, MINIBATCH_SIZE) # MINIBATCH_SIZE == 32
-                    # Every C updates we clone the network Q to obtaion a target network Qhat
-                    if(frame % TARGET_NETWORK_UPDATE_FREQUENCY == 0): # TARGET_NETWORK_UPDATE_FREQUENCY = 10000        
-                        # copy network from mainDQN to targetDQN
-                        sess.run(copy_ops)
                     loss, _ = replay_train(mainDQN, targetDQN, minibatch)
                     
-        
-            if(episode % 100 == 0): # save per 100 episodes
-                # save model
-                saver.save(sess, MODEL_SAVE_LOCATION)
-                print("model saved.")
-                    
-    
-            print("Episode: {:5d}, frame: {:6d}, reward_total: {}, avgMaxQ: {:.5f}, e: {:.5f}, loss: {:.7f}".format(episode, frame, reward_total, np.mean(qlist), EXPLORATION, loss))
+                # Every C updates we clone the network Q to obtaion a target network Qhat
+                if(frame % TARGET_NETWORK_UPDATE_FREQUENCY == 0): # TARGET_NETWORK_UPDATE_FREQUENCY = 10000        
+                    # copy network from mainDQN to targetDQN
+                    sess.run(copy_ops)
+
+            # sum of recent 50 episodes' rewards
+            reward50.append(reward_total)
             
-            # stop looping if total reward is bigger than 12
-            if(reward_total > 12):
-                print("congrats! reward above 12")
+            # append attributes to log file
+            log.append([episode, frame, step, loss, EXPLORATION, reward_total, np.mean(reward50), np.mean(qlist)])
+
+        
+            if((episode > 0) & (episode % 100 == 0)): # save per 100 episodes
+                # save model
+                saver.save(sess, MODEL_SAVE_LOCATION + "model_{}.ckpt".format(episode))
+                
+                # save training log
+                np.savetxt(LOG_SAVE_LOCATION + "log_{}.txt".format(episode), log, delimiter=',')
+                log = []
+                print("model & log saved.")
+    
+            print("Episode: {:4d}, frame: {:6d}, step: {:5d}, reward_total: {:.1f}, recent50avg: {:.1f}, avgMaxQ: {:.5f}, e: {:.5f}, loss: {:.7f}".format(episode, frame, step, reward_total, np.mean(reward50), np.mean(qlist), EXPLORATION, loss))
+            
+            # stop looping if total reward is bigger than 18
+            if(reward_total > 18):
+                print("congrats! reward above 18")
                 break
+            
