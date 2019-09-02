@@ -27,12 +27,13 @@ ACTION_REPEAT = 4
 #UPDATE_FREQUENCY = 4 # ???
 LEARNING_RATE = 1e-4 # 2.5e-4
 EXPLORATION = 1 # initial value
-FINAL_EXPLORATION_RATE = 0.1 # 0.1
+EXPLORATION2 = 0.1
+FINAL_EXPLORATION_RATE = 0.075 # 0.1
 FINAL_EXPLORATION_FRAME = 1000000 # 1000000
 TOTAL_EPISODE = 100*50
-MODEL_SAVE_LOCATION = "c:/users/hkko/desktop/model/"
-VIDEO_SAVE_LOCATION = "c:/users/hkko/desktop/video/"
-LOG_SAVE_LOCATION = "c:/users/hkko/desktop/log/"
+MODEL_SAVE_LOCATION = "model/"
+VIDEO_SAVE_LOCATION = "video/"
+LOG_SAVE_LOCATION = "log/"
 #EPSILON = 0.01
 #MOMENTUM = 0.95
 
@@ -46,7 +47,7 @@ env = gym.make("PongDeterministic-v4")
 
 # record the game as as an mp4 file
 # how to use: https://gym.openai.com/evaluations/eval_lqShqslRtaJqR9yWWZIJg/
-env = wrappers.Monitor(env, VIDEO_SAVE_LOCATION, force=True, video_callable=lambda episode_id: episode_id%100==0) 
+env = wrappers.Monitor(env, VIDEO_SAVE_LOCATION, force=True, video_callable=lambda episode_id: episode_id%10==0) 
 
 # INPUT DIMENSION
 #input_size = env.observation_space.shape # (210, 160, 3)
@@ -116,9 +117,9 @@ class DQN:
         error = self.cliped_error(self._Y - self._Qpred)
 
         # Loss function
-        self._loss = tf.reduce_sum(error)
+#        self._loss = tf.reduce_sum(error)
 #        self._loss = tf.reduce_mean(error)
-#        self._loss = tf.reduce_mean(tf.square(error))
+        self._loss = tf.reduce_mean(tf.square(error))
         
         # Learning
         self._train = tf.compat.v1.train.AdamOptimizer(LEARNING_RATE).minimize(self._loss)
@@ -238,9 +239,9 @@ if __name__ == "__main__":
     
     # boost GPU usage for this process
     # for more information about using GPU in tf, visit: https://www.tensorflow.org/guide/using_gpu
-#    cfg = tf.ConfigProto()
-    tf_config = tf.ConfigProto(inter_op_parallelism_threads=1, intra_op_parallelism_threads=1)
-    tf_config.gpu_options.per_process_gpu_memory_fraction = 0.5
+    tf_config = tf.ConfigProto()
+    # tf_config = tf.ConfigProto(inter_op_parallelism_threads=1, intra_op_parallelism_threads=1)
+    tf_config.gpu_options.per_process_gpu_memory_fraction = 0.6
     
     with tf.compat.v1.Session(config=tf_config) as sess:
 #    with tf.compat.v1.Session(config=cfg) as sess:
@@ -255,7 +256,8 @@ if __name__ == "__main__":
         
         # Load trained parameters
         if(load):
-            saver.restore(sess, MODEL_SAVE_LOCATION)
+#            saver.restore(sess, MODEL_SAVE_LOCATION)
+            saver.restore(sess, "save/model_970.ckpt")
             print("model loaded.")
     
         # Render model
@@ -275,7 +277,8 @@ if __name__ == "__main__":
             # Exploration variable: [Initial = 1, Final = 0.1]
             
             if((frame > TRAIN_START) & (EXPLORATION > FINAL_EXPLORATION_RATE)):
-                EXPLORATION = 1 - 0.9 * ((frame-TRAIN_START) / FINAL_EXPLORATION_FRAME)
+                EXPLORATION = EXPLORATION2 - 0.9 * ((frame-TRAIN_START) / FINAL_EXPLORATION_FRAME)
+#                EXPLORATION = 1 - 0.9 * ((frame-TRAIN_START) / FINAL_EXPLORATION_FRAME)
 
             done = False
             step = 0
@@ -344,7 +347,7 @@ if __name__ == "__main__":
             log.append([episode, frame, step, loss, EXPLORATION, reward_total, np.mean(reward50), np.mean(qlist)])
 
         
-            if((episode > 0) & (episode % 100 == 0)): # save per 100 episodes
+            if((episode > 50) & (episode % 10 == 0)): # save per 10 episodes
                 # save model
                 saver.save(sess, MODEL_SAVE_LOCATION + "model_{}.ckpt".format(episode))
                 

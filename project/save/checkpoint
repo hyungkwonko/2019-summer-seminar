@@ -1,0 +1,6 @@
+model_checkpoint_path: "c:/users/hkko/desktop/model/model_100.ckpt"
+all_model_checkpoint_paths: "c:/users/hkko/desktop/model/model_60.ckpt"
+all_model_checkpoint_paths: "c:/users/hkko/desktop/model/model_70.ckpt"
+all_model_checkpoint_paths: "c:/users/hkko/desktop/model/model_80.ckpt"
+all_model_checkpoint_paths: "c:/users/hkko/desktop/model/model_90.ckpt"
+all_model_checkpoint_paths: "c:/users/hkko/desktop/model/model_100.ckpt"
