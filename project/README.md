@@ -22,21 +22,20 @@ I used 3 layers of convolutional neural network architecture with the following 
 ## Outcome
 
 ### Loss
-<img src="https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/loss.png" width="300">
+<img src="https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/loss.png" width="500">
 
-
-![](https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/loss2.png)
+<img src="https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/loss2.png" width="500">
 
 - The loss is not linearly decreasing and it was hard to find any latent pattern regarding it.
 
 ### Average Max Q value
-![](https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/avgmaxq.png)
+<img src="https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/avgmaxq.png" width="500">
 
 ### Average reward for recent 50 episodes
-![](https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/avgrwd.png)
+<img src="https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/avgrwd.png" width="500">
 
 ### Step for each episode
-![](https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/avgstep.png)
+<img src="https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/avgstep.png" width="500">
 
 ## Dependency
 To run this code, I used `python 3.7.3` with `tensorflow 1.14.0` and `tensorflow-gpu 1.13.1`.
