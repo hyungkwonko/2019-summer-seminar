@@ -10,6 +10,7 @@
 [](https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/before.png)
 [](https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/after.png)
 
+
 Since it requires a huge amount of computational power, it is important to reduce the input size as much as possible. For this process, I made the image as 80*80 with 1 channel.
 
 ## 
