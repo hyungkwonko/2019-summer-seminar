@@ -22,7 +22,8 @@ I used 3 layers of convolutional neural network architecture with the following 
 ## Outcome
 
 ### Loss
-![](https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/loss.png)
+<img src="https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/loss.png" width="300">
+
 
 ![](https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/loss2.png)
 
