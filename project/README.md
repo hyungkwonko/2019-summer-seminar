@@ -1,9 +1,13 @@
 
 # Playing Atari Pong with Deep Q Network(DQN)
 
+## Outcome
+
 ![](https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/vbefore.gif)
 ![](https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/vafter.gif)
 
+- Before training (left) and after training (right).
+- You can also check [my Youtube video](https://www.youtube.com/watch?v=0UZ5U5YhGMs)
 
 ## Image preprocessing
 
@@ -18,7 +22,7 @@ I used 3 layers of convolutional neural network architecture with the following 
 ## Outcome
 
 ### Loss
-![](https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/loss.png | width=100)
+![](https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/loss.png)
 
 ![](https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/loss2.png)
 
@@ -38,7 +42,7 @@ To run this code, I used `python 3.7.3` with `tensorflow 1.14.0` and `tensorflow
 
 
 ## References
+- [Playing Atari with deep reinforcement learning by Mnih et al.](https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf)
+- [Human-level control through deep reinforcement learning by Mnih et al.](https://web.stanford.edu/class/psych209/Readings/MnihEtAlHassibis15NatureControlDeepRL.pdf)
 - [DQN으로 Breakout(벽돌깨기) 학습 (Korean)](https://passi0n.tistory.com/88?category=748105)
 - [모두를 위한 RL (Korean)](https://www.youtube.com/watch?v=dZ4vw6v3LcA&list=PLlMkM4tgfjnKsCWav-Z2F-MMFRx-2gMGG)
-- [Playing Atari with deep reinforcement learning by Mnih et al.](https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf)
-- [MIT 6.S191: Introduction to Deep Learning by Alexander Amini | Winter 2019](https://web.stanford.edu/class/psych209/Readings/MnihEtAlHassibis15NatureControlDeepRL.pdf)
