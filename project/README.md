@@ -38,7 +38,9 @@ I used 3 layers of convolutional neural network architecture with the following 
 <img src="https://github.com/hyungkwonko/2019-summer-seminar/blob/master/project/img/avgstep.png" width="500">
 
 ## Dependency
-To run this code, I used `python 3.7.3` with `tensorflow 1.14.0` and `tensorflow-gpu 1.13.1`.
+- `python 3.7.3`
+- `tensorflow 1.14.0`
+- `tensorflow-gpu 1.13.1`.
 
 
 ## References
